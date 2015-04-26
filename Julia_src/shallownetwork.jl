@@ -28,7 +28,7 @@ data_test = AsyncHDF5DataLayer(name="data-test",source="train_test_data.txt",bat
 accuracy_test = AccuracyLayer(name="accuracy-test",bottoms=[:pred, :label])
 net_test = Net("images-test", backend, [data_test, common_layers..., accuracy_test])
 
-add_coffee_break(solver, ValidationPerformance(net_test), every_n_iter=500)
+add_coffee_break(solver, ValidationPerformance(net_test), every_n_iter=100)
 
 solve(solver, net)
 
