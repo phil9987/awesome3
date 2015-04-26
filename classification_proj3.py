@@ -22,6 +22,7 @@ import libfann
 
 import h5py
 
+pca = PCA(n_components=600)
 
 
 def score(gtruth, gpred):
@@ -120,11 +121,11 @@ def convert_Y_to_discrete(Y):
 def revert_discrete_Y(Y_ext):
     Y = np.zeros(max(np.shape(Y_ext)))
     for i in range(len(Y)):
-        est = np.where(Y_ext[i]==1)
-        if not est==[]:
+        est = np.where(Y_ext[i]==1)[0]
+        if not est.size==0:
             Y[i] = est[0]
         else:
-            Y[i] == np.where(Y_ext[i]==max(Y_ext[i]))
+            Y[i] == np.where(Y_ext[i]==max(Y_ext[i]))[0]
     return Y
 
 def predict_and_print(name, class1, class2, X):
@@ -132,7 +133,7 @@ def predict_and_print(name, class1, class2, X):
     np.savetxt('project_data/' + name + '.txt', Ypred.T, fmt='%i', delimiter=',')
 
 def predict_and_print_single(name, cl, X):
-    Ypred = np.array([cl.predict(X)])
+    Ypred = np.array([cl.predict(X)]).flatten()
     np.savetxt('project_data/' + name + '.txt', Ypred.T, fmt='%i', delimiter=',')
 
 def predict_and_print_ann(name, X):
@@ -248,7 +249,6 @@ def svm_classifier(Xtrain, Ytrain):
 
 
 def principalComponents(Xtrain, Ytrain):
-    pca = PCA(n_components=600)
     X = pca.fit_transform(Xtrain, Ytrain)
     return X
 
@@ -368,25 +368,24 @@ def multi_classifier(classifiers):
 
 
 def regress_hdf5(fn, name, X, Y, Xval, Xtestsub):
-    Xtrain, Xtest, Ytrain, Ytest = skcv.train_test_split(X, Y, train_size=0.7)
+    Xtrain, Xtest, Ytrain, Ytest = skcv.train_test_split(X, Y, train_size=0.8)
 
     cl = fn(Xtrain, Ytrain)
     print 'DEBUG: classifier trained'
 
 
-    Ytrain = revert_discrete_Y(Ytrain)
+    #Ytrain = revert_discrete_Y(Ytrain)
     Ypred = cl.predict(Xtrain)
     Ypred_test = cl.predict(Xtest)
-    Ypred = revert_discrete_Y(Ypred)
-    Ypred_test = revert_discrete_Y(Ypred_test)
+    #Ypred = revert_discrete_Y(Ypred)
+    #Ypred_test = revert_discrete_Y(Ypred_test)
 
-    sumscore_single(gtruth1, gpred1)
     #print 'SCORE:', name, ' - trainset ', sumscore_classifier(class1, class2, Xtrain, Ytrain)
     #print 'SCORE:', name, ' - test ', sumscore_classifier(class1, class2, Xtest, Ytest)
     #print 'SCORE:', name, ' - trainset ', sumscore_classifier_single(cl, Xtrain, Ytrain)
     #print 'SCORE:', name, ' - test ', sumscore_classifier_single(cl, Xtest, Ytest)
-    print 'SCORE:', name, ' - trainset ', sumscore_single(Ytrain, Ypred)
-    print 'SCORE:', name, ' - test ', sumscore_single(Ytest, Ypred_test)
+    print 'SCORE:', name, ' - trainset ', sumscore_single(Ytrain.flatten(), Ypred)
+    print 'SCORE:', name, ' - test ', sumscore_single(Ytest.flatten(), Ypred_test)
     #print 'SCORE:', name, ' - trainset ', sumscore_classifier_ann_single(Xtrain, Ytrain)
     #print 'SCORE:', name, ' - test ', sumscore_classifier_ann_single(Xtest, Ytest)
 
@@ -424,7 +423,9 @@ def read_and_regress_hdf5(feature_fn):
     Xo = np.array(train_data)
     Y = np.array(train_label)
     Y_big = convert_Y_to_discrete(Y)
-
+    Xo = Xo[0:5000,:]
+    Y_big = Y_big[0:5000]
+    Y = Y[0:5000]
     X = principalComponents(Xo, Y)
 
     #means = [np.mean(Xo[:,i]) for i in range(np.shape(Xo)[1])]
@@ -436,13 +437,15 @@ def read_and_regress_hdf5(feature_fn):
 
     train_file = h5py.File("./project_data/validate.h5", "r")
     Xvalo = train_file['data'][:]
+    Xval = pca.transform(Xvalo)
     #Xval = read_features(Xvalo, means, stds, feature_fn)
     train_file = h5py.File("./project_data/test.h5", "r")
     Xtesto = train_file['data'][:]
+    Xtest = pca.transform(Xtesto)
     #Xtest = read_features(Xtesto, means, stds, feature_fn)
 
     #regress_hdf5(neuralnet_classifier, 'ann', X, Y, Xval, Xtest)
-    regress_hdf5(tree_classifier, 'extra_trees', X, Y_big, Xvalo, Xtesto)
+    regress_hdf5(tree_classifier, 'extra_trees', X, Y, Xval, Xtest)
 
 
 if __name__ == "__main__":
