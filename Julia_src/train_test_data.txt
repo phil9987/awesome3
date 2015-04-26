@@ -1,5 +1,1 @@
-<<<<<<< HEAD
 ./project_data/train_double_test.h5
-=======
-../project_data/train_double_test.h5
->>>>>>> origin/master

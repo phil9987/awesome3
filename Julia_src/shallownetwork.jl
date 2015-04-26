@@ -1,5 +1,3 @@
-ENV["MOCHA_USE_NATIVE_EXT"] = "true"
-
 using Mocha
 
 backend = CPUBackend()
@@ -7,9 +5,7 @@ init(backend)
 
 data = AsyncHDF5DataLayer(name="data", source="train_data.txt", batch_size=100, shuffle=true)
 
-common_layers = [InnerProductLayer(name="ip", output_dim=10,tops=[:pred],bottoms=[:ip2]),
-								InnerProductLayer(name="ip2",output_dim=512,neuron=Neurons.Sigmoid(),tops=[:ip2],bottoms=[:data]),
-								DropoutLayer(name="dropout",ratio=0.2,bottoms=[:data])]
+common_layers = [InnerProductLayer(name="ip", output_dim=10,tops=[:pred],bottoms=[:ip2]),InnerProductLayer(name="ip2",output_dim=512,neuron=Neurons.Sigmoid(),tops=[:ip2],bottoms=[:data]), DropoutLayer(name="dropout",ratio=0.2,bottoms=[:data])]
 
 loss = SoftmaxLossLayer(name="loss",bottoms=[:pred,:label])
 #loss = SquareLossLayer(name="loss", bottoms=[:pred, :label])
