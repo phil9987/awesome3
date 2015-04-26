@@ -5,24 +5,30 @@ init(backend)
 
 data = AsyncHDF5DataLayer(name="data", source="train_data.txt", batch_size=100, shuffle=true)
 
-common_layers = [InnerProductLayer(name="ip", output_dim=10,tops=[:pred],bottoms=[:data])]
+common_layers = [InnerProductLayer(name="ip", output_dim=10,tops=[:pred],bottoms=[:ip2]),InnerProductLayer(name="ip2",output_dim=512,neuron=Neurons.Sigmoid(),tops=[:ip2],bottoms=[:data]), DropoutLayer(name="dropout",ratio=0.2,bottoms=[:data])]
 
-#loss = SoftmaxLossLayer(name="loss",bottoms=[:pred,:label])
-loss = SquareLossLayer(name="loss", bottoms=[:pred, :label])
+loss = SoftmaxLossLayer(name="loss",bottoms=[:pred,:label])
+#loss = SquareLossLayer(name="loss", bottoms=[:pred, :label])
 
 net = Net("images", backend, [data, common_layers..., loss])
 
 exp_dir= "snapshots"
-params = SolverParameters(max_iter=5000, regu_coef=0.0005,
+lr_policy = LRPolicy.Staged(
+  (60000, LRPolicy.Fixed(0.001)),
+  (5000, LRPolicy.Fixed(0.0001)),
+  (5000, LRPolicy.Fixed(0.00001)),
+)
+#lr_policy=LRPolicy.Inv(0.01,0.0001,0.75)
+params = SolverParameters(max_iter=5000, regu_coef=0.0004,
 	mom_policy=MomPolicy.Fixed(0.9),
-	lr_policy=LRPolicy.Inv(0.01,0.0001,0.75),
+	lr_policy=lr_policy,
 	load_from=exp_dir)
 solver=SGD(params)
 
 setup_coffee_lounge(solver, save_into="$exp_dir/output.jld", every_n_iter=250)
 
 add_coffee_break(solver, TrainingSummary(), every_n_iter=250)
-add_coffee_break(solver, Snapshot(exp_dir), every_n_iter=250)
+add_coffee_break(solver, Snapshot(exp_dir), every_n_iter=5000)
 
 data_test = AsyncHDF5DataLayer(name="data-test",source="train_test_data.txt",batch_size=100)
 accuracy_test = AccuracyLayer(name="accuracy-test",bottoms=[:pred, :label])
@@ -41,4 +47,5 @@ forward(net_val)
 destroy(net)
 destroy(net_test)
 destroy(net_val)
+
 shutdown(backend)
