@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 
 def main():
-    validate = h5py.File("./julia_src/project_data/validate_double.h5")
+    validate = h5py.File("./julia_src/project_data/test_double.h5")
     train_file = h5py.File("./julia_src/validate_output.h5", "r")
     for name in validate:
         print name

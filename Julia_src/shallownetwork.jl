@@ -30,9 +30,9 @@ setup_coffee_lounge(solver, save_into="$exp_dir/output.jld", every_n_iter=250)
 add_coffee_break(solver, TrainingSummary(), every_n_iter=250)
 add_coffee_break(solver, Snapshot(exp_dir), every_n_iter=5000)
 
-data_test = AsyncHDF5DataLayer(name="data-test",source="train_test_data.txt",batch_size=100)
+data_train_test = AsyncHDF5DataLayer(name="data-test",source="train_test_data.txt",batch_size=100)
 accuracy_test = AccuracyLayer(name="accuracy-test",bottoms=[:pred, :label])
-net_test = Net("images-test", backend, [data_test, common_layers..., accuracy_test])
+net_test = Net("images-test", backend, [data_train_test, common_layers..., accuracy_test])
 
 add_coffee_break(solver, ValidationPerformance(net_test), every_n_iter=100)
 
@@ -43,6 +43,13 @@ output_val = HDF5OutputLayer(name="output-val",filename="validate_output.h5",for
 net_val = Net("images-val", backend, [data_val, common_layers..., output_val])
 
 forward(net_val)
+
+data_test = AsyncHDF5DataLayer(name="testdata",source="test_data.txt",batch_size=10000,tops=[:data])
+output_test = HDF5OutputLayer(name="output-test",filename="test_output.h5",force_overwrite=true,bottoms=[:pred],datasets=[:label])
+net_testdata = Net("images-test",backend,[data_test, common_layers..., output_test])
+
+forward(net_testdata)
+
 
 destroy(net)
 destroy(net_test)
