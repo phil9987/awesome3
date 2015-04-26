@@ -3,13 +3,12 @@ using Mocha
 backend = CPUBackend()
 init(backend)
 
-data = AsyncHDF5DataLayer(name="data", source="train_data.txt", batch_size=128, shuffle=true)
+data = AsyncHDF5DataLayer(name="data", source="train_data.txt", batch_size=100, shuffle=true)
 
-common_layers = [
-# 								 InnerProductLayer(name="ip1",output_dim=2048,tops=[:ip1],bottoms=[:data],neuron=Neurons.ReLU()),
-								 InnerProductLayer(name="ip2",output_dim=10,tops=[:pred],bottoms=[:data])]
+common_layers = [InnerProductLayer(name="ip", output_dim=10,tops=[:pred],bottoms=[:data])]
 
-loss = SoftmaxLossLayer(name="loss",bottoms=[:pred,:label])
+#loss = SoftmaxLossLayer(name="loss",bottoms=[:pred,:label])
+loss = SquareLossLayer(name="loss", bottoms=[:pred, :label])
 
 net = Net("images", backend, [data, common_layers..., loss])
 
@@ -25,11 +24,11 @@ setup_coffee_lounge(solver, save_into="$exp_dir/output.jld", every_n_iter=250)
 add_coffee_break(solver, TrainingSummary(), every_n_iter=250)
 add_coffee_break(solver, Snapshot(exp_dir), every_n_iter=250)
 
-data_test = AsyncHDF5DataLayer(name="data-test",source="train_test_data.txt",batch_size=128)
+data_test = AsyncHDF5DataLayer(name="data-test",source="train_test_data.txt",batch_size=100)
 accuracy_test = AccuracyLayer(name="accuracy-test",bottoms=[:pred, :label])
 net_test = Net("images-test", backend, [data_test, common_layers..., accuracy_test])
 
-add_coffee_break(solver, ValidationPerformance(net_test), every_n_iter=250)
+add_coffee_break(solver, ValidationPerformance(net_test), every_n_iter=500)
 
 solve(solver, net)
 
