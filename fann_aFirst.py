@@ -1,4 +1,3 @@
-
 import numpy as np
 import csv
 import sklearn.linear_model as sklin
@@ -23,10 +22,10 @@ import libfann
 import h5py
 
 # parameters
-normalize = False
+normalize = True
 split_training_data = True
-split_percentage_train = 0.1
-split_percentage_test = 0.1
+split_percentage_train = 0.95
+split_percentage_test = 0.05
 
 
 
@@ -38,13 +37,13 @@ def ortho(fns, x, means,stds):
 
 def simple_implementation(x, means,stds):
 #    x = map(float, x)
-    fs = [y for i in range(8) for y in [((float(x[i])-means[i])/stds[i])]]
-    fs.extend(x[9:])
-    fs.append(1)
+    fs = [y for i in range(len(x)) for y in [((float(x[i])-means[i])/stds[i])]]
+    #fs.extend(x[9:])
+    #fs.append(1)
     return fs
 
 def sumscore_single(gtruth1, gpred1):
-    return float(np.sum(gtruth1 != gpred1))
+    return float(np.sum(gtruth1 != gpred1))/len(gpred1)
 
 
 def sumscore_classifier_ann_single(X, Y):
@@ -60,9 +59,10 @@ def sumscore_classifier_ann_single(X, Y):
         out_vec_rounded = np.array(out_vec_rounded)
         cl = np.where(out_vec_rounded==1)[0]
         if not len(cl)==1:
-            print 'error in sumscore: more than one or no output unit was 1; there were ',len(cl),' 1-output units.'
+            #print 'error in sumscore: more than one or no output unit was 1; there were ',len(cl),' 1-output units.'
             cl = np.where(out_vec==np.max(out_vec))[0][0]
         mat1 = np.append(mat1, cl)
+    ann.destroy()
     return sumscore_single(Y[:, 0], mat1)
 
 
@@ -84,8 +84,8 @@ def extract_features(feature_fn):
     train_file = h5py.File("./project_data/train.h5", "r")
     for name in train_file:
         print name
-    train_data = np.matrix(train_file['data'][:])
-    train_label = np.matrix(train_file['label'][:])
+    train_data = np.array(train_file['data'][:])
+    train_label = np.array(train_file['label'][:])
     print 'shape of train-data: ',train_data.shape
     print 'shape of train-label: ',train_label.shape
     Xo = train_data
@@ -120,7 +120,7 @@ def predict_and_print_ann(name, X, nnfilename):
         out_vec_rounded = np.array(out_vec_rounded)
         cl = np.where(out_vec_rounded==1)[0]
         if not len(cl)==1:
-            print 'error in predict&print: more than one or no output unit was 1; there were ',len(cl),' 1-output units.'
+            #print 'error in predict&print: more than one or no output unit was 1; there were ',len(cl),' 1-output units.'
             cl = np.where(out_vec==np.max(out_vec))[0][0]
         Ypred = np.append(Ypred, [cl], axis=0)
 
@@ -128,6 +128,7 @@ def predict_and_print_ann(name, X, nnfilename):
     #X = X.tolist()
     #Ypred =[class1(X), class2(X)]
     np.savetxt('project_data/' + name + '.txt', Ypred.T, fmt='%i', delimiter=',')
+    ann.destroy()
 
 
 def getNNData_better(XTrain, YTrain): # one output neuron per class
@@ -135,7 +136,8 @@ def getNNData_better(XTrain, YTrain): # one output neuron per class
     nr_features = min(XTrain.shape)
     classes = np.unique(YTrain)
     nr_classes = len(classes)
-    nndata=open("project_data/nndata.txt","w")
+    datafile = "project_data/nndata_normalized.txt"
+    nndata=open(datafile,"w")
     nndata.write("%d %d %d \n" % (data_size, nr_features, nr_classes))   #header
     for i in range(data_size):
         x_sub = XTrain[i,:]
@@ -150,9 +152,9 @@ def getNNData_better(XTrain, YTrain): # one output neuron per class
         nndata.write(y_line)
         if i % 10000 == 0:
             print str(i)+' of '+str(data_size)+' data points written to file'
-    print str(i)+' of '+str(data_size)+' data points written to file'
+    print str(i+1)+' of '+str(data_size)+' data points written to file'
     nndata.close()
-    return "project_data/nndata.txt"
+    return datafile
 
 
 
@@ -160,9 +162,9 @@ def create_and_train_nn(XTrain, YTrain, datafile, nr_its):
     data_size = max(XTrain.shape)
     nr_output = len(np.unique(YTrain))
     connection_rate = 1
-    steepness_out = 1.0
-    #nr_hidden1 = 500
-    #nr_hidden2 = 75
+    steepness_out = 1.2
+    #nr_hidden1 = 75
+    #nr_hidden2 = 51
     nr_hidden = 100
     desired_error = 0.01
     max_iterations = 3*nr_its
@@ -215,25 +217,34 @@ def create_and_train_nn(XTrain, YTrain, datafile, nr_its):
             trainE = trainE_new
             testE = testE_new
         i = i + its_per_round
-        if i % 10 == 0:
-            print 'nr of epochs so far: %d; error on training set: %f; on test set: %f' % (i, trainE, testE)
+        #if i % 10 == 0:
+        print 'nr of epochs so far: %d; error on training set: %f; on test set: %f' % (i, trainE, testE)
     print 'network has been trained in %d epochs; error on training set: %f; on test set: %f' % (i, trainE, testE)
     print 'overfitting: '+str(overfit)+" (test data exists: "+str(split_training_data)+")"
     ann.save("project_data/ann"+str(max(YTrain))+".net")
 
-    return "project_data/ann"+str(max(YTrain))+".net"
+    nndat_all.destroy_train()
+    nndat_train.destroy_train()
+    nndat_test.destroy_train()
+
+    return "ann"+str(max(YTrain))
     #return lambda x: round(ann.run(x))
     #return ann
 
 
 
 
+
+
+
+
+
 def read_and_regress_hdf5(feature_fn):
     X, Y, Xtest, Xval = extract_features(feature_fn)
-    Xtrain, Xtrain_test, Ytrain, Ytrain_test = skcv.train_test_split(X, Y, train_size=0.7)
+    Xtrain, Xtrain_test, Ytrain, Ytrain_test = skcv.train_test_split(X, Y, train_size=0.8)
 
-    #datafile = getNNData_better(XTrain, YTrain)    #You only need to do this once. Just needed 54 seconds, so don't if you don't need to
-    datafile = "project_data/nndata.txt"
+    datafile = getNNData_better(X, Y)    #You only need to do this once. Just needed 54 seconds, so don't if you don't need to
+    #datafile = "project_data/nndata.txt"
 
     name = create_and_train_nn(Xtrain, Ytrain, datafile, 10)
 
@@ -244,7 +255,8 @@ def read_and_regress_hdf5(feature_fn):
     predict_and_print_ann('validate_y_' + name, Xval, name)
     predict_and_print_ann('test_y_' + name, Xtest, name)
 
-    #name = create_and_train_nn(Xtrain, Ytrain, datafile, 100)
+
+    #name = create_and_train_nn(Xtrain, Ytrain, datafile, 150)
 
     #test it
     #print 'SCORE:', name, ' - trainset ', sumscore_classifier_ann_single(Xtrain, Ytrain)
@@ -256,6 +268,9 @@ def read_and_regress_hdf5(feature_fn):
     #print 'SCORE:', name, ' - trainset ', sumscore_classifier_ann_single(Xtrain, Ytrain)
     #print 'SCORE:', name, ' - test ', sumscore_classifier_ann_single(Xtrain_test, Ytrain_test)
 
+
+    #predict_and_print_ann('validate_y_' + name, Xval, name)
+    #predict_and_print_ann('test_y_' + name, Xtest, name)
 
 
 
