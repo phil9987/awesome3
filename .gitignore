@@ -1,0 +1,3 @@
+.virtualenv
+Julia_src/validate_output.txt
+project_data/*.h5

@@ -54,4 +54,5 @@ forward(net_testdata)
 destroy(net)
 destroy(net_test)
 destroy(net_val)
+
 shutdown(backend)
