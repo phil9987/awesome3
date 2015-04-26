@@ -9,6 +9,7 @@ from sklearn import linear_model
 from sklearn.svm import LinearSVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+from sklearn.decomposition import PCA
 
 from sklearn import svm
 from sklearn.grid_search import GridSearchCV
@@ -40,7 +41,7 @@ def sumscore_classifier(class1, class2, X, Y):
     return sumscore(Y[:, 0], Y[:, 1], class1.prediccl.predict(X), class2.predict(X))
 
 def sumscore_classifier_single(cl, X, Y):
-    return sumscore_single(Y[:, 0], cl.predict(X))
+    return sumscore_single(Y[:], cl.predict(X))
 
 def sumscore_classifier_ann_single(X, Y):
     #approxFun1 =  (np.vectorize(class1))
@@ -115,6 +116,16 @@ def convert_Y_to_discrete(Y):
         Y_ext[i, y] = 1
         i = i+1
     return Y_ext
+
+def revert_discrete_Y(Y_ext):
+    Y = np.zeros(max(np.shape(Y_ext)))
+    for i in range(len(Y)):
+        est = np.where(Y_ext[i]==1)
+        if not est==[]:
+            Y[i] = est[0]
+        else:
+            Y[i] == np.where(Y_ext[i]==max(Y_ext[i]))
+    return Y
 
 def predict_and_print(name, class1, class2, X):
     Ypred = np.array([class1.predict(X), class2.predict(X)])
@@ -235,6 +246,11 @@ def svm_classifier(Xtrain, Ytrain):
     return grid.best_estimator_
     #return classifier
 
+
+def principalComponents(Xtrain, Ytrain):
+    pca = PCA(n_components=600)
+    X = pca.fit_transform(Xtrain, Ytrain)
+    return X
 
 
 def getNNData(XTrain, YTrain):
@@ -357,10 +373,20 @@ def regress_hdf5(fn, name, X, Y, Xval, Xtestsub):
     cl = fn(Xtrain, Ytrain)
     print 'DEBUG: classifier trained'
 
+
+    Ytrain = revert_discrete_Y(Ytrain)
+    Ypred = cl.predict(Xtrain)
+    Ypred_test = cl.predict(Xtest)
+    Ypred = revert_discrete_Y(Ypred)
+    Ypred_test = revert_discrete_Y(Ypred_test)
+
+    sumscore_single(gtruth1, gpred1)
     #print 'SCORE:', name, ' - trainset ', sumscore_classifier(class1, class2, Xtrain, Ytrain)
     #print 'SCORE:', name, ' - test ', sumscore_classifier(class1, class2, Xtest, Ytest)
-    print 'SCORE:', name, ' - trainset ', sumscore_classifier_single(cl, Xtrain, Ytrain)
-    print 'SCORE:', name, ' - test ', sumscore_classifier_single(cl, Xtest, Ytest)
+    #print 'SCORE:', name, ' - trainset ', sumscore_classifier_single(cl, Xtrain, Ytrain)
+    #print 'SCORE:', name, ' - test ', sumscore_classifier_single(cl, Xtest, Ytest)
+    print 'SCORE:', name, ' - trainset ', sumscore_single(Ytrain, Ypred)
+    print 'SCORE:', name, ' - test ', sumscore_single(Ytest, Ypred_test)
     #print 'SCORE:', name, ' - trainset ', sumscore_classifier_ann_single(Xtrain, Ytrain)
     #print 'SCORE:', name, ' - test ', sumscore_classifier_ann_single(Xtest, Ytest)
 
@@ -399,6 +425,8 @@ def read_and_regress_hdf5(feature_fn):
     Y = np.array(train_label)
     Y_big = convert_Y_to_discrete(Y)
 
+    X = principalComponents(Xo, Y)
+
     #means = [np.mean(Xo[:,i]) for i in range(np.shape(Xo)[1])]
     #print 'means: ', means
     #stds = [np.std(Xo[:,i]) for i in range(np.shape(Xo)[1])]
@@ -414,52 +442,7 @@ def read_and_regress_hdf5(feature_fn):
     #Xtest = read_features(Xtesto, means, stds, feature_fn)
 
     #regress_hdf5(neuralnet_classifier, 'ann', X, Y, Xval, Xtest)
-    regress_hdf5(tree_classifier, 'extra_trees', Xo, Y_big, Xvalo, Xtesto)
-
-
-
-
-
-def read_and_regress(feature_fn):
-    Xo = read_path('project_data/train.csv')
-    print 'data points: ', len(Xo)
-
-    XM = np.matrix(Xo)
-    means = [np.mean(XM[:,i]) for i in range(np.shape(XM)[1])]
-    print 'means: ', means
-    stds = [np.std(XM[:,i]) for i in range(np.shape(XM)[1])]
-    print 'stds: ', stds
-
-    Y = np.genfromtxt('project_data/train_y.csv', delimiter=',')
-    np.savetxt('project_data/' + 'DEBUG_X' + '.txt', Xo, fmt='%f', delimiter=',')
-
-    X = read_features(Xo, means, stds, feature_fn)
-
-    #X[:,0:9] = preprocessing.scale(X[:,0:9])
-    np.savetxt('project_data/' + 'DEBUG_Xscaled' + '.txt', X, fmt='%1.2f', delimiter=',')
-
-    print 'DEBUG: total nb of base-functions: %d' % np.shape(X)[1]
-    Xvalo = read_path('project_data/validate.csv')
-    Xtesto = read_path('project_data/test.csv')
-    Xval = read_features(Xvalo, means, stds, feature_fn)
-    Xtest = read_features(Xtesto, means, stds, feature_fn)
-    #Xval[:,0:9] = preprocessing.scale(Xval[:,0:9])      #only scale features that are not 'one-hot-encoded'
-#   Xtest = preprocessing.scale(Xtest)
-    # For now, we don't need to generate test
-    #Xtest = Xval
-    print 'DEBUG: read in everything'
-
-    #regress(lin_classifier, 'lin', X, Y, Xval, Xtest)
-    #regress(knn_classifier, 'knn', X, Y, Xval, Xtest)
-    #regress_no_split(tree_classifier, 'tree', X, Y, Xval, Xtest)
-    regress(tree_classifier, 'extra_trees', X, Y, Xval, Xtest)
-    #regress(onevsone_classifier, 'onevsone', X, Y, Xval, Xtest)
-    #regress_no_split(forest_classifier, 'forest', X, Y, Xval, Xtest)
-    #regress_no_split(svm_classifier, 'svm', X, Y, Xval, Xtest)
-    #regress(svm_classifier(0),'svm',X,Y,Xval,Xtest)
-    '''Yval = np.genfromtxt('project_data/validate_y_tree.txt', delimiter=',')
-    print 'training classifier on predicted data'
-    regress(tree_classifier,'tree',Xval,Yval,Xval,Xtest)'''
+    regress_hdf5(tree_classifier, 'extra_trees', X, Y_big, Xvalo, Xtesto)
 
 
 if __name__ == "__main__":
