@@ -1,1 +1,1 @@
-./project_data/test_double.h5
+../project_data/test_double.h5
